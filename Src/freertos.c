@@ -25,12 +25,14 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */     
+/* USER CODE BEGIN Includes */
 #include "scpi/scpi.h"
 #include "scpi-def.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticTimer_t osStaticTimerDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -49,19 +51,57 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-typedef StaticQueue_t osStaticMessageQDef_t;
-typedef StaticTimer_t osStaticTimerDef_t;
+/* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for taskParseCmd */
 osThreadId_t taskParseCmdHandle;
+const osThreadAttr_t taskParseCmd_attributes = {
+  .name = "taskParseCmd",
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for taskFeedWD */
 osThreadId_t taskFeedWDHandle;
+const osThreadAttr_t taskFeedWD_attributes = {
+  .name = "taskFeedWD",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityRealtime7,
+};
+/* Definitions for cmdRxQueue */
 osMessageQueueId_t cmdRxQueueHandle;
 uint8_t cmdRxQueueBuffer[ 512 * sizeof( uint8_t ) ];
 osStaticMessageQDef_t cmdRxQueueControlBlock;
+const osMessageQueueAttr_t cmdRxQueue_attributes = {
+  .name = "cmdRxQueue",
+  .cb_mem = &cmdRxQueueControlBlock,
+  .cb_size = sizeof(cmdRxQueueControlBlock),
+  .mq_mem = &cmdRxQueueBuffer,
+  .mq_size = sizeof(cmdRxQueueBuffer)
+};
+/* Definitions for cmdTxQueue */
 osMessageQueueId_t cmdTxQueueHandle;
 uint8_t cmdTxQueueBuffer[ 512 * sizeof( uint8_t ) ];
 osStaticMessageQDef_t cmdTxQueueControlBlock;
+const osMessageQueueAttr_t cmdTxQueue_attributes = {
+  .name = "cmdTxQueue",
+  .cb_mem = &cmdTxQueueControlBlock,
+  .cb_size = sizeof(cmdTxQueueControlBlock),
+  .mq_mem = &cmdTxQueueBuffer,
+  .mq_size = sizeof(cmdTxQueueBuffer)
+};
+/* Definitions for cmdReceiveTimeout */
 osTimerId_t cmdReceiveTimeoutHandle;
 osStaticTimerDef_t cmdReceiveTimeoutControlBlock;
+const osTimerAttr_t cmdReceiveTimeout_attributes = {
+  .name = "cmdReceiveTimeout",
+  .cb_mem = &cmdReceiveTimeoutControlBlock,
+  .cb_size = sizeof(cmdReceiveTimeoutControlBlock),
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -84,7 +124,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
        
   /* USER CODE END Init */
-osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -95,12 +134,7 @@ osKernelInitialize();
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* Create the timer(s) */
-  /* definition and creation of cmdReceiveTimeout */
-  const osTimerAttr_t cmdReceiveTimeout_attributes = {
-    .name = "cmdReceiveTimeout",
-    .cb_mem = &cmdReceiveTimeoutControlBlock,
-    .cb_size = sizeof(cmdReceiveTimeoutControlBlock),
-  };
+  /* creation of cmdReceiveTimeout */
   cmdReceiveTimeoutHandle = osTimerNew(CmdReceiveTimeoutCallback, osTimerOnce, NULL, &cmdReceiveTimeout_attributes);
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -108,24 +142,10 @@ osKernelInitialize();
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* definition and creation of cmdRxQueue */
-  const osMessageQueueAttr_t cmdRxQueue_attributes = {
-    .name = "cmdRxQueue",
-    .cb_mem = &cmdRxQueueControlBlock,
-    .cb_size = sizeof(cmdRxQueueControlBlock),
-    .mq_mem = &cmdRxQueueBuffer,
-    .mq_size = sizeof(cmdRxQueueBuffer)
-  };
+  /* creation of cmdRxQueue */
   cmdRxQueueHandle = osMessageQueueNew (512, sizeof(uint8_t), &cmdRxQueue_attributes);
 
-  /* definition and creation of cmdTxQueue */
-  const osMessageQueueAttr_t cmdTxQueue_attributes = {
-    .name = "cmdTxQueue",
-    .cb_mem = &cmdTxQueueControlBlock,
-    .cb_size = sizeof(cmdTxQueueControlBlock),
-    .mq_mem = &cmdTxQueueBuffer,
-    .mq_size = sizeof(cmdTxQueueBuffer)
-  };
+  /* creation of cmdTxQueue */
   cmdTxQueueHandle = osMessageQueueNew (512, sizeof(uint8_t), &cmdTxQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -133,33 +153,22 @@ osKernelInitialize();
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  const osThreadAttr_t defaultTask_attributes = {
-    .name = "defaultTask",
-    .priority = (osPriority_t) osPriorityNormal,
-    .stack_size = 128
-  };
+  /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* definition and creation of taskParseCmd */
-  const osThreadAttr_t taskParseCmd_attributes = {
-    .name = "taskParseCmd",
-    .priority = (osPriority_t) osPriorityHigh,
-    .stack_size = 1024
-  };
+  /* creation of taskParseCmd */
   taskParseCmdHandle = osThreadNew(StartTaskParseCmd, NULL, &taskParseCmd_attributes);
 
-  /* definition and creation of taskFeedWD */
-  const osThreadAttr_t taskFeedWD_attributes = {
-    .name = "taskFeedWD",
-    .priority = (osPriority_t) osPriorityRealtime7,
-    .stack_size = 128
-  };
+  /* creation of taskFeedWD */
   taskFeedWDHandle = osThreadNew(StartTaskFeedWD, NULL, &taskFeedWD_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
 
 }
 
@@ -249,4 +258,3 @@ void CmdReceiveTimeoutCallback(void *argument)
      
 /* USER CODE END Application */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -74,7 +74,7 @@ void HAL_MspInit(void)
   /* PendSV_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(PendSV_IRQn, 15, 0);
 
-  /** ENABLE: Full SWJ (JTAG-DP + SW-DP): Reset State 
+  /** ENABLE: Full SWJ (JTAG-DP + SW-DP): Reset State
   */
   __HAL_AFIO_REMAP_SWJ_ENABLE();
 
@@ -86,5 +86,3 @@ void HAL_MspInit(void)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

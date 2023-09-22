@@ -55,3 +55,4 @@ dkms.conf
 /MDK-ARM/stm32LibSCPIDemo
 /MDK-ARM/RTE/_stm32LibSCPIDemo
 /MDK-ARM/stm32LibSCPIDemo.uvguix.gaoyi
+/Debug/
